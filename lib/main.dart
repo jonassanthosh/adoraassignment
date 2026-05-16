@@ -1,122 +1,62 @@
-import 'package:flutter/material.dart';
+// Entry point for the Location Tracking application.
+//
+// This file is responsible for:
+//   * Wiring up dependency injection via `get_it` so that services
+//     (e.g. [LocationService]) can be resolved anywhere in the widget tree
+//     without being passed manually through constructors.
+//   * Bootstrapping the Flutter app by calling [runApp] with the root widget.
+//   * Configuring the global [MaterialApp] (theme, title) and providing the
+//     [LocationBloc] to the widget subtree rooted at [HomePage].
 
+import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
+
+import 'bloc/location_bloc.dart';
+import 'location_service.dart';
+import 'home_page.dart';
+
+/// Global service locator used to register and retrieve singletons such as
+/// [LocationService]. Exposed at the library level so any widget or bloc can
+/// access shared dependencies without prop drilling.
+final getIt = GetIt.instance;
+
+/// Application entry point.
+///
+/// Registers the [LocationService] as a lazy singleton (created only the first
+/// time it is requested) and then starts the Flutter app.
 void main() {
-  runApp(const MyApp());
+  // Lazy registration keeps startup cheap; the service is only instantiated
+  // when something actually asks for it.
+  getIt.registerLazySingleton<LocationService>(() => LocationService());
+  runApp(const LocationTrackingApp());
 }
 
-class MyApp extends StatelessWidget {
-  const MyApp({super.key});
+/// Root widget of the application.
+///
+/// Sets up the global [MaterialApp] configuration (theme, title) and provides
+/// a [LocationBloc] scoped to the [HomePage] subtree. Using [BlocProvider]
+/// here ensures the bloc lives for the entire lifetime of the home screen and
+/// is automatically disposed when removed from the tree.
+class LocationTrackingApp extends StatelessWidget {
+  const LocationTrackingApp({super.key});
 
-  // This widget is the root of your application.
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Flutter Demo',
+      title: 'Location Tracking',
       theme: ThemeData(
-        // This is the theme of your application.
-        //
-        // TRY THIS: Try running your application with "flutter run". You'll see
-        // the application has a purple toolbar. Then, without quitting the app,
-        // try changing the seedColor in the colorScheme below to Colors.green
-        // and then invoke "hot reload" (save your changes or press the "hot
-        // reload" button in a Flutter-supported IDE, or press "r" if you used
-        // the command line to start the app).
-        //
-        // Notice that the counter didn't reset back to zero; the application
-        // state is not lost during the reload. To reset the state, use hot
-        // restart instead.
-        //
-        // This works for code too, not just values: Most code changes can be
-        // tested with just a hot reload.
-        colorScheme: .fromSeed(seedColor: Colors.deepPurple),
+        // Material 3 color scheme derived from a single seed color for a
+        // cohesive, accessible palette across light/dark surfaces.
+        colorScheme: ColorScheme.fromSeed(seedColor: Colors.indigo),
+        useMaterial3: true,
       ),
-      home: const MyHomePage(title: 'Flutter Demo Home Page'),
-    );
-  }
-}
-
-class MyHomePage extends StatefulWidget {
-  const MyHomePage({super.key, required this.title});
-
-  // This widget is the home page of your application. It is stateful, meaning
-  // that it has a State object (defined below) that contains fields that affect
-  // how it looks.
-
-  // This class is the configuration for the state. It holds the values (in this
-  // case the title) provided by the parent (in this case the App widget) and
-  // used by the build method of the State. Fields in a Widget subclass are
-  // always marked "final".
-
-  final String title;
-
-  @override
-  State<MyHomePage> createState() => _MyHomePageState();
-}
-
-class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
-
-  void _incrementCounter() {
-    setState(() {
-      // This call to setState tells the Flutter framework that something has
-      // changed in this State, which causes it to rerun the build method below
-      // so that the display can reflect the updated values. If we changed
-      // _counter without calling setState(), then the build method would not be
-      // called again, and so nothing would appear to happen.
-      _counter++;
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    // This method is rerun every time setState is called, for instance as done
-    // by the _incrementCounter method above.
-    //
-    // The Flutter framework has been optimized to make rerunning build methods
-    // fast, so that you can just rebuild anything that needs updating rather
-    // than having to individually change instances of widgets.
-    return Scaffold(
-      appBar: AppBar(
-        // TRY THIS: Try changing the color here to a specific color (to
-        // Colors.amber, perhaps?) and trigger a hot reload to see the AppBar
-        // change color while the other colors stay the same.
-        backgroundColor: Theme.of(context).colorScheme.inversePrimary,
-        // Here we take the value from the MyHomePage object that was created by
-        // the App.build method, and use it to set our appbar title.
-        title: Text(widget.title),
-      ),
-      body: Center(
-        // Center is a layout widget. It takes a single child and positions it
-        // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          //
-          // TRY THIS: Invoke "debug painting" (choose the "Toggle Debug Paint"
-          // action in the IDE, or press "p" in the console), to see the
-          // wireframe for each widget.
-          mainAxisAlignment: .center,
-          children: [
-            const Text('You have pushed the button this many times:'),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.headlineMedium,
-            ),
-          ],
+      home: BlocProvider(
+        // The bloc receives the [LocationService] resolved from the service
+        // locator, keeping this widget free of concrete dependency wiring.
+        create: (_) => LocationBloc(getIt<LocationService>()),
+        child: const HomePage(),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
-        tooltip: 'Increment',
-        child: const Icon(Icons.add),
-      ),
     );
   }
 }
