@@ -22,9 +22,25 @@ class LocationPage extends StatelessWidget {
                   '${last.latitude.toStringAsFixed(5)}, '
                   '${last.longitude.toStringAsFixed(5)}',
                 ),
-              LocationFailure(:final message) => Text(
-                  'Error: $message',
-                  style: const TextStyle(color: Colors.red),
+              LocationFailure(:final message, :final openSettings) => Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Error: $message',
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(color: Colors.red),
+                    ),
+                    if (openSettings) ...[
+                      const SizedBox(height: 12),
+                      ElevatedButton.icon(
+                        onPressed: () => context
+                            .read<LocationBloc>()
+                            .add(const LocationEvent.openSettingsRequested()),
+                        icon: const Icon(Icons.settings),
+                        label: const Text('Open Settings'),
+                      ),
+                    ],
+                  ],
                 ),
             };
           },

@@ -4,7 +4,9 @@ import 'package:injectable/injectable.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:permission_handler/permission_handler.dart';
 
+import '../../data/datasources/permission_datasource.dart' as uc;
 import '../../domain/entities/location_entities.dart';
+import '../../domain/entities/permission_status.dart';
 import '../../domain/usecases/get_last_location.dart' as uc;
 import '../../domain/usecases/start_tracking.dart' as uc;
 import '../../domain/usecases/stop_tracking.dart' as uc;
@@ -15,6 +17,7 @@ import 'location_state.dart';
 @injectable
 class LocationBloc extends Bloc<LocationEvent, LocationState> {
   LocationBloc({
+    required this.permissions,
     required this.startTracking,
     required this.stopTracking,
     required this.watchLocations,
@@ -22,10 +25,12 @@ class LocationBloc extends Bloc<LocationEvent, LocationState> {
   }) : super(const LocationState.idle()) {
     on<StartTracking>(_onStart);
     on<StopTracking>(_onStop);
+    on<ToggleBackground>(_onToggleBackground);
     on<OpenSettingsRequested>((_, __) => openAppSettings());
     _bootstrap();
   }
 
+  final uc.PermissionDataSource permissions;
   final uc.StartTracking startTracking;
   final uc.StopTracking stopTracking;
   final uc.WatchLocations watchLocations;
@@ -42,6 +47,30 @@ class LocationBloc extends Bloc<LocationEvent, LocationState> {
 
   Future<void> _onStart(StartTracking _, Emitter<LocationState> emit) async {
     emit(const LocationState.loading());
+    final auth = await permissions.current();
+    switch (auth) {
+      case LocationAuth.serviceDisabled:
+        emit(const LocationState.failure('Location services are off. Enable in Settings.', openSettings: true));
+        return;
+      case LocationAuth.deniedForever:
+        emit(const LocationState.failure('Permission permanently denied. Open Settings.', openSettings: true));
+        return;
+      case LocationAuth.denied:
+      case LocationAuth.notDetermined:
+        final next = await permissions.requestWhileInUse();
+        if (next != LocationAuth.whileInUse && next != LocationAuth.always) {
+          emit(LocationState.failure(
+            next == LocationAuth.deniedForever
+                ? 'Permission permanently denied. Open Settings.'
+                : 'Permission denied.',
+            openSettings: next == LocationAuth.deniedForever,
+          ));
+          return;
+        }
+      case LocationAuth.whileInUse:
+      case LocationAuth.always:
+        break;
+    }
     try {
       await startTracking();
       await emit.forEach<LocationEntity>(
@@ -60,6 +89,26 @@ class LocationBloc extends Bloc<LocationEvent, LocationState> {
     await stopTracking();
     emit(const LocationState.idle());
   }
+
+  Future<void> _onToggleBackground(
+  ToggleBackground event,
+  Emitter<LocationState> emit,
+) async {
+  if (!event.enabled) {
+    // turn off; nothing to ask
+    return;
+  }
+  final cur = await permissions.current();
+  if (cur != LocationAuth.always) {
+    final upgraded = await permissions.requestAlways();
+    if (upgraded != LocationAuth.always) {
+      emit(LocationState.failure(
+        'Background tracking needs "Always" permission. Adjust in Settings.',
+        openSettings: true,
+      ));
+    }
+  }
+}
 
   @override
   Future<void> close() async {
