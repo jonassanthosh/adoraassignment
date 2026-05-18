@@ -57,3 +57,13 @@ Future<LocationPermissionResult> ensureLocationPermission() async {
   // Plain denial (the user said no but can be asked again in the future).
   return LocationPermissionResult(false, error: 'Location permission denied');
 }
+
+  Future<bool> ensureNotificationPermissions() async {
+    final status = await Permission.notification.status;
+    if(status.isGranted) return true;
+    if(status.isPermanentlyDenied) return false;
+    final result = await Permission.notification.request();
+    if(result.isGranted) return true;
+    if(result.isPermanentlyDenied) return false;
+    return false;
+  }
