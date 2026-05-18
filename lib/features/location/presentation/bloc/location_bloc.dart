@@ -11,6 +11,7 @@ import '../../domain/usecases/get_last_location.dart' as uc;
 import '../../domain/usecases/start_tracking.dart' as uc;
 import '../../domain/usecases/stop_tracking.dart' as uc;
 import '../../domain/usecases/watch_locations.dart' as uc;
+import '../../../../services/background/background_service_controller.dart';
 import 'location_event.dart';
 import 'location_state.dart';
 
@@ -22,11 +23,13 @@ class LocationBloc extends Bloc<LocationEvent, LocationState> {
     required this.stopTracking,
     required this.watchLocations,
     required this.getLastLocation,
+    required this._bg,
   }) : super(const LocationState.idle()) {
     on<StartTracking>(_onStart);
     on<StopTracking>(_onStop);
     on<ToggleBackground>(_onToggleBackground);
     on<OpenSettingsRequested>((_, __) => openAppSettings());
+
     _bootstrap();
   }
 
@@ -35,17 +38,23 @@ class LocationBloc extends Bloc<LocationEvent, LocationState> {
   final uc.StopTracking stopTracking;
   final uc.WatchLocations watchLocations;
   final uc.GetLastLocation getLastLocation;
+  final BackgroundServiceController _bg;
 
   StreamSubscription<LocationEntity>? _sub;
 
   Future<void> _bootstrap() async {
     final last = await getLastLocation();
-    if (last != null && state is LocationIdle) {
+    if (await _bg.isRunning()) {
+      _sub = watchLocations().listen(
+        (loc) => emit(LocationState.tracking(loc)),
+        onError: (e) => emit(LocationState.failure('$e')),
+      );
+    } else if (last != null) {
       emit(LocationState.tracking(last));
     }
   }
 
-  Future<void> _onStart(StartTracking _, Emitter<LocationState> emit) async {
+  Future<void> _onStart(StartTracking event, Emitter<LocationState> emit) async {
     emit(const LocationState.loading());
     final auth = await permissions.current();
     switch (auth) {
@@ -72,7 +81,7 @@ class LocationBloc extends Bloc<LocationEvent, LocationState> {
         break;
     }
     try {
-      await startTracking();
+      await startTracking(useBackground: event.useBackground);
       await emit.forEach<LocationEntity>(
         watchLocations(),
         onData: (loc) => LocationState.tracking(loc),
@@ -94,19 +103,21 @@ class LocationBloc extends Bloc<LocationEvent, LocationState> {
   ToggleBackground event,
   Emitter<LocationState> emit,
 ) async {
-  if (!event.enabled) {
-    // turn off; nothing to ask
-    return;
-  }
-  final cur = await permissions.current();
-  if (cur != LocationAuth.always) {
-    final upgraded = await permissions.requestAlways();
-    if (upgraded != LocationAuth.always) {
-      emit(LocationState.failure(
-        'Background tracking needs "Always" permission. Adjust in Settings.',
-        openSettings: true,
-      ));
+  if (event.enabled) {
+    final cur = await permissions.current();
+    if (cur != LocationAuth.always) {
+      final upgraded = await permissions.requestAlways();
+      if (upgraded != LocationAuth.always) {
+        emit(LocationState.failure(
+          'Background tracking needs "Always" permission. Adjust in Settings.',
+          openSettings: true,
+        ));
+        return;
+      }
     }
+  }
+  if (state is LocationTracking || state is LocationLoading) {
+    add(LocationEvent.startTracking(useBackground: event.enabled));
   }
 }
 

@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import '../bloc/location_bloc.dart';
 import '../bloc/location_event.dart';
 import '../bloc/location_state.dart';
+import '../bloc/settings_cubit.dart';
 
 class ActionButtons extends StatelessWidget {
   const ActionButtons({super.key, required this.state});
@@ -24,7 +25,15 @@ class ActionButtons extends StatelessWidget {
               child: FilledButton.icon(
                 onPressed: isTracking
                     ? null
-                    : () => bloc.add(const LocationEvent.startTracking()),
+                    : () {
+                        final useBackground = context
+                            .read<SettingsCubit>()
+                            .state
+                            .backgroundEnabled;
+                        bloc.add(LocationEvent.startTracking(
+                          useBackground: useBackground,
+                        ));
+                      },
                 icon: const Icon(Icons.play_arrow),
                 label: const Text('Start'),
               ),

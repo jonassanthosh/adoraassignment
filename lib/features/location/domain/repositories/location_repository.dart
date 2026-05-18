@@ -5,7 +5,7 @@ abstract class LocationRepository {
 
   Stream<LocationEntity> watchLocations();
 
-  Future<void> startTracking();
+  Future<void> startTracking({bool useBackground = false});
 
   Future<void> stopTracking();
 

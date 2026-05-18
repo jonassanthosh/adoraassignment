@@ -27,12 +27,12 @@ class BackgroundServiceController {
 
 
   Stream<LocationEntity> updates() => _service.on('update').map((event) {
-    final m = event ?? {};
+    final m = event ?? const <String, dynamic>{};
     return LocationEntity(
       latitude: (m['lat'] as num).toDouble(),
       longitude: (m['lon'] as num).toDouble(),
       accuracy: (m['accuracy'] as num).toDouble(),
-      timestamp: DateTime.fromMillisecondsSinceEpoch(m['ts'] as int),
+      timestamp: DateTime.fromMillisecondsSinceEpoch((m['ts'] as num).toInt()),
       source: 'background',
     );
   });

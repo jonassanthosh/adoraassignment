@@ -6,5 +6,6 @@ import '../repositories/location_repository.dart';
 class StartTracking {
   StartTracking(this._repo);
   final LocationRepository _repo;
-  Future<void> call() => _repo.startTracking();
+  Future<void> call({bool useBackground = false}) =>
+      _repo.startTracking(useBackground: useBackground);
 }

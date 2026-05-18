@@ -30,11 +30,19 @@ sealed class LocationModel with _$LocationModel {
         source: source,
       );
 
+  factory LocationModel.fromRow(Map<String, Object?> row) => LocationModel(
+    lat: row['lat']! as double,
+    lon: row['lon']! as double,
+    accuracy: (row['accuracy']! as num).toDouble(),
+    tsMillis: row['ts']! as int,
+    source: row['source'] as String?,
+  );
+
   LocationEntity toEntity() => LocationEntity(
-        latitude: lat,
-        longitude: lon,
-        accuracy: accuracy,
-        timestamp: DateTime.fromMillisecondsSinceEpoch(tsMillis),
-        source: source,
-      );
+    latitude: lat,
+    longitude: lon,
+    accuracy: accuracy,
+    timestamp: DateTime.fromMillisecondsSinceEpoch(tsMillis),
+    source: source,
+  );
 }
