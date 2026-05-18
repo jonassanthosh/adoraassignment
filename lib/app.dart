@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'core/di/injector.dart';
 import 'features/location/presentation/bloc/location_bloc.dart';
+import 'features/location/presentation/bloc/settings_cubit.dart';
 import 'features/location/presentation/pages/home_page.dart';
 
 class LocationTrackingApp extends StatelessWidget {
@@ -24,8 +25,11 @@ class LocationTrackingApp extends StatelessWidget {
         useMaterial3: true,
       ),
       themeMode: ThemeMode.system,
-      home: BlocProvider(
-        create: (_) => getIt<LocationBloc>(),
+      home: MultiBlocProvider(
+        providers: [
+          BlocProvider(create: (_) => getIt<LocationBloc>()),
+          BlocProvider(create: (_) => getIt<SettingsCubit>()),
+        ],
         child: const HomePage(),
       ),
     );
