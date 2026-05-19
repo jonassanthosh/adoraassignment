@@ -6,9 +6,14 @@ import '../bloc/location_event.dart';
 import '../bloc/location_state.dart';
 import '../bloc/settings_cubit.dart';
 
-/// Foot of the home screen. Single, hero primary action that morphs between
-/// Start and Stop, with a contextual "Open Settings" button when the BLoC
-/// asks for it.
+/// Foot of the home screen. Single, hero primary action that morphs
+/// between Start and Stop, with a contextual "Open Settings" button
+/// when the BLoC asks for it.
+///
+/// One primary button (instead of two side-by-side) makes the intended
+/// action unambiguous in any state. Loading counts as "tracking" for
+/// affordance purposes — we don't want the user firing a second start
+/// while the first is still resolving permissions.
 class ActionButtons extends StatelessWidget {
   const ActionButtons({super.key, required this.state});
 
@@ -23,6 +28,9 @@ class ActionButtons extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
 
     final primary = isTracking
+        // Stop uses the error-container palette to telegraph that it's
+        // a destructive action without going all the way to a red
+        // confirmation dialog.
         ? FilledButton.tonalIcon(
             onPressed: () => bloc.add(const LocationEvent.stopTracking()),
             style: FilledButton.styleFrom(
@@ -36,6 +44,9 @@ class ActionButtons extends StatelessWidget {
             icon: const Icon(Icons.stop_rounded),
             label: const Text('Stop tracking'),
           )
+        // Reads the user's "track in background" preference at the
+        // moment of the tap, not at build time, so toggling the switch
+        // is always honored on the next Start.
         : FilledButton.icon(
             onPressed: () {
               final useBackground = context

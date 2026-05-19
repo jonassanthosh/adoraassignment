@@ -6,6 +6,13 @@ import '../bloc/location_event.dart';
 import '../bloc/settings_cubit.dart';
 
 /// Card-wrapped switch for the background-tracking preference.
+///
+/// Flipping the switch does two things, deliberately in this order:
+///   1. Persist the new preference via [SettingsCubit] — survives
+///      restarts and is what [ActionButtons] reads on the next Start.
+///   2. Tell [LocationBloc] about it so any *in-flight* session can
+///      reconfigure (and trigger the "Always" permission upgrade)
+///      without the user having to stop and restart.
 class TrackingToggle extends StatelessWidget {
   const TrackingToggle({super.key});
 
@@ -56,6 +63,8 @@ class TrackingToggle extends StatelessWidget {
                   ],
                 ),
               ),
+              // `Switch.adaptive` renders as a Cupertino switch on
+              // iOS and Material on Android with no extra work.
               Switch.adaptive(
                 value: state.backgroundEnabled,
                 onChanged: (v) {

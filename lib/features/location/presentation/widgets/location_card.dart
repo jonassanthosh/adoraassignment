@@ -4,8 +4,13 @@ import '../../../../core/theme/app_theme.dart';
 import '../../domain/entities/location_entities.dart';
 import '../bloc/location_state.dart';
 
-/// The hero card on the home screen. Top strip shows a status dot, label
-/// and source badge; the body changes shape depending on the BLoC state.
+/// The hero card on the home screen. Top strip shows a status dot,
+/// label, and source badge; the body changes shape depending on the
+/// BLoC state (idle / loading / tracking / failure).
+///
+/// All variants are matched exhaustively via `switch` on the sealed
+/// [LocationState] union — adding a new state in the BLoC produces a
+/// compile error here, which is the whole point of using `freezed`.
 class LocationCard extends StatelessWidget {
   const LocationCard({super.key, required this.state});
 
@@ -101,6 +106,9 @@ class _StatusStrip extends StatelessWidget {
   }
 }
 
+/// Two-layer dot with an outer halo that fades in and out, animated by
+/// a single shared [AnimationController]. Stateful so the controller's
+/// lifecycle is tied to the widget's mount and we don't leak it.
 class _PulsingDot extends StatefulWidget {
   const _PulsingDot({required this.color});
   final Color color;

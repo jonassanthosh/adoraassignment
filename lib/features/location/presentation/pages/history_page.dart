@@ -4,6 +4,12 @@ import '../../../../core/di/injector.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../../storage/location_database.dart';
 
+/// Read-only timeline of recent fixes pulled straight from SQLite.
+///
+/// The page does not subscribe to live updates — it loads a snapshot on
+/// mount and exposes pull-to-refresh for the user to grab a fresh one.
+/// Avoids the cost of holding a live DB watcher open while the user is
+/// likely just glancing at recent activity.
 class HistoryPage extends StatefulWidget {
   const HistoryPage({super.key});
   @override
@@ -20,10 +26,15 @@ class _HistoryPageState extends State<HistoryPage> {
   }
 
   Future<List<_Fix>> _load() async {
+    // 200 is a soft upper bound — large enough to span days of activity,
+    // small enough to keep the in-memory list cheap and ListView snappy.
     final rows = await getIt<LocationDatabase>().recent(limit: 200);
     return rows.map(_Fix.fromRow).toList();
   }
 
+  /// Pull-to-refresh handler. Captures the future *before* setState so
+  /// the `await` at the end waits on exactly the future the UI is now
+  /// bound to, even if another refresh races in.
   Future<void> _refresh() async {
     final next = _load();
     setState(() {
@@ -226,6 +237,10 @@ class _SourceAvatar extends StatelessWidget {
   }
 }
 
+/// Page-private DTO. Deliberately *not* `LocationModel` because this
+/// page never needs JSON or entity conversion — keeping it local makes
+/// the storage adapter (`fromRow`) tight and lets us tweak the shape
+/// without touching the domain.
 class _Fix {
   _Fix({
     required this.lat,
@@ -256,6 +271,11 @@ class _DayGroup {
   final List<_Fix> fixes;
 }
 
+/// Groups fixes by local-time calendar day and preserves source order
+/// via a parallel `order` list — a `Map` alone wouldn't keep "Today"
+/// before "Yesterday" reliably across Dart versions. The input is
+/// already sorted newest-first by the SQL query, so we never have to
+/// re-sort here.
 List<_DayGroup> _groupByDay(List<_Fix> fixes) {
   final now = DateTime.now();
   final today = DateTime(now.year, now.month, now.day);

@@ -8,6 +8,13 @@ import '../widgets/location_card.dart';
 import '../widgets/tracking_toggle.dart';
 import 'history_page.dart';
 
+/// The only screen the user starts on. Composed of three reusable
+/// widgets — [LocationCard], [TrackingToggle], [ActionButtons] — so each
+/// section can be reasoned about (and reused) on its own.
+///
+/// The page itself is intentionally dumb: it doesn't dispatch events or
+/// read settings; it just renders whatever [LocationBloc] currently
+/// holds. All interaction lives inside the child widgets.
 class HomePage extends StatelessWidget {
   const HomePage({super.key});
 
@@ -29,6 +36,10 @@ class HomePage extends StatelessWidget {
         ],
       ),
       body: SafeArea(
+        // Rebuilds whenever the BLoC emits — every child below the
+        // builder sees the same `state` snapshot, so the page is always
+        // internally consistent (the toggle, the card, and the buttons
+        // never disagree about what's going on).
         child: BlocBuilder<LocationBloc, LocationState>(
           builder: (context, state) {
             return ListView(

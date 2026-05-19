@@ -7,6 +7,12 @@ import 'features/location/presentation/bloc/location_bloc.dart';
 import 'features/location/presentation/bloc/settings_cubit.dart';
 import 'features/location/presentation/pages/home_page.dart';
 
+/// Root widget. Two responsibilities:
+///   1. Install the app-wide theme (`AppTheme` from `core/theme/`).
+///   2. Hand out the two top-level state holders — [LocationBloc] and
+///      [SettingsCubit] — through [MultiBlocProvider]. They're pulled
+///      from `get_it` rather than constructed inline so the same graph
+///      that DI built at boot is what the widget tree sees.
 class LocationTrackingApp extends StatelessWidget {
   const LocationTrackingApp({super.key});
 
