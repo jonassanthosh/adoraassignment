@@ -1,26 +1,29 @@
 import 'dart:async';
+import 'dart:io';
 
+import 'package:geolocator/geolocator.dart';
 import 'package:injectable/injectable.dart';
-import 'package:location_tracking/features/location/domain/usecases/watch_locations.dart';
 import '../../domain/entities/location_entities.dart';
 import '../../domain/repositories/location_repository.dart';
 import '../datasources/geolocator_datasource.dart';
 import '../models/location_model.dart';
 import '../../../../services/background/background_service_controller.dart';
 import '../../../../storage/location_database.dart';
+import '../../../../services/background/ios_slc_bridge.dart';
 
 @LazySingleton(as: LocationRepository)
 class LocationRepositoryImpl implements LocationRepository {
-  LocationRepositoryImpl(this._geo, this._bg, this._db);
+  LocationRepositoryImpl(this._geo, this._bg, this._db, this._slc);
 
   final GeolocatorDataSource _geo;
   final BackgroundServiceController _bg;
   final LocationDatabase _db;
+  final IosSlcBridge _slc;
 
   StreamSubscription<dynamic>? _fgSub;
   StreamSubscription<LocationEntity>? _bgSub;
+  StreamSubscription<LocationEntity>? _slcSub;
   final _controller = StreamController<LocationEntity>.broadcast();
-  LocationEntity? _last;
 
   @override
   Future<LocationEntity> getCurrentLocation() async {
@@ -29,50 +32,30 @@ class LocationRepositoryImpl implements LocationRepository {
       pos,
       source: 'foreground',
     ).toEntity();
-    _last = entity;
     return entity;
   }
 
   @override
   Future<void> startTracking({bool useBackground = false}) async {
     await stopTracking();
+
     if (useBackground) {
-      await _bg.start();
-      _bgSub = _bg.updates().listen(
-        (entity) async {
-          try {
-            await _db.insertLocation(
-              lat: entity.latitude,
-              lon: entity.longitude,
-              accuracy: entity.accuracy,
-              tsMillis: entity.timestamp.millisecondsSinceEpoch,
-              source: 'background',
-            );
-          } catch (_) {
-            // Best-effort persistence: never let a DB error stop the stream.
-          }
-          _controller.add(entity);
-        },
-        onError: (Object e, StackTrace st) {
-          _controller.addError(e, st);
-        },
-      );
-    } else {
-      _fgSub = _geo.stream().listen((p) async {
-        final entity = LocationModel.fromPosition(
-          p,
-          source: 'foreground',
-        ).toEntity();
-        await _db.insertLocation(
-          lat: p.latitude,
-          lon: p.longitude,
-          accuracy: p.accuracy,
-          tsMillis: (p.timestamp).millisecondsSinceEpoch,
-          source: 'foreground',
-        );
-        _controller.add(entity);
-      });
+      if (Platform.isIOS) {
+        await _slc.start();
+        _slcSub = _slc.updates().listen((e) {
+          _controller.add(e);
+        });
+      } else if (Platform.isAndroid) {
+        await _bg.start();
+        _bgSub = _bg.updates().listen(_controller.add);
+      }
     }
+
+    _fgSub = _geo.stream().listen((p) {
+      _controller.add(
+        LocationModel.fromPosition(p, source: 'foreground').toEntity(),
+      );
+    });
   }
 
   @override
@@ -81,7 +64,11 @@ class LocationRepositoryImpl implements LocationRepository {
     _fgSub = null;
     await _bgSub?.cancel();
     _bgSub = null;
+    await _slcSub?.cancel();
+    _slcSub = null;
     await _bg.stop();
+    if (Platform.isAndroid) await _bg.stop();
+    if (Platform.isIOS) await _slc.stop();
   }
 
   @override

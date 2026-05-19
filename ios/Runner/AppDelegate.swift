@@ -1,5 +1,6 @@
-import Flutter
 import UIKit
+import Flutter
+import CoreLocation
 
 @main
 @objc class AppDelegate: FlutterAppDelegate {
@@ -8,6 +9,38 @@ import UIKit
     didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
+
+    let controller = window?.rootViewController as! FlutterViewController
+    let messenger = controller.binaryMessenger
+
+    let methodChannel = FlutterMethodChannel(
+      name: "com.adoralocationassignment.locationTracking/slc",
+      binaryMessenger: messenger
+    )
+    methodChannel.setMethodCallHandler { call, result in
+      switch call.method {
+      case "start":
+        SignificantLocationManager.shared.start()
+        result(nil)
+      case "stop":
+        SignificantLocationManager.shared.stop()
+        result(nil)
+      default:
+        result(FlutterMethodNotImplemented)
+      }
+    }
+
+    let eventChannel = FlutterEventChannel(
+      name: "com.adoralocationassignment.locationTracking/slc/events",
+      binaryMessenger: messenger
+    )
+    eventChannel.setStreamHandler(SignificantLocationManager.shared)
+
+    // If iOS relaunched us due to a location event, re-arm the manager.
+    if let opts = launchOptions, opts[.location] != nil {
+      SignificantLocationManager.shared.handleHeadlessLaunch()
+    }
+
     return super.application(application, didFinishLaunchingWithOptions: launchOptions)
   }
 }
