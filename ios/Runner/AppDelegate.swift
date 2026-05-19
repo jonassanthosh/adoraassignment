@@ -10,8 +10,13 @@ import CoreLocation
   ) -> Bool {
     GeneratedPluginRegistrant.register(with: self)
 
-    let controller = window?.rootViewController as! FlutterViewController
-    let messenger = controller.binaryMessenger
+    // After Flutter's UISceneDelegate migration, `window` is nil here.
+    // Use FlutterPluginRegistry (FlutterAppDelegate conforms to it) to get
+    // a binaryMessenger instead of reaching through `rootViewController`.
+    guard let registrar = self.registrar(forPlugin: "SignificantLocationPlugin") else {
+      return super.application(application, didFinishLaunchingWithOptions: launchOptions)
+    }
+    let messenger = registrar.messenger()
 
     let methodChannel = FlutterMethodChannel(
       name: "com.adoralocationassignment.locationTracking/slc",
@@ -36,7 +41,6 @@ import CoreLocation
     )
     eventChannel.setStreamHandler(SignificantLocationManager.shared)
 
-    // If iOS relaunched us due to a location event, re-arm the manager.
     if let opts = launchOptions, opts[.location] != nil {
       SignificantLocationManager.shared.handleHeadlessLaunch()
     }
